@@ -80,7 +80,9 @@ asm_args = '-include ' + os.path.realpath(sys.path[0]) + '/fake_asm.h'
 clang_include = '-I/home/chyyuu/llvm-related/install/include/clang'
 kernel_args = ''
 compile_cmd = []
-abspath = ''
+#abspath = ''
+abspath = args.obj
+print "###current abs path::",abspath
 
 # auto analyze kernel compile args
 def cmp_args_gen(filename):
@@ -111,9 +113,9 @@ def cmp_args_gen(filename):
 
 	compile_cmd = os.popen('sed -n "1,1p" %s' % cmd_file).read().strip().split(' -')
 	temp = compile_cmd[:]
-	print "cmd_file:: ", cmd_file
-	print "compile_cmd:: ",compile_cmd
-	print "temp:: ",temp
+#	print "###cmd_file:: ", cmd_file
+#	print "###compile_cmd:: ",compile_cmd
+#	print "###temp:: ",temp
 	
 	# analyze the absolute path of file
 	for cc in temp:
@@ -130,13 +132,18 @@ def cmp_args_gen(filename):
 	if abspath == '':
 		print "can not find abspath."
 		quit()
-	kernel_top_dir = abspath[1:abspath.find('/arch/')]
-#	print "kernel top dir is : " + kernel_top_dir
+#	kernel_top_dir = abspath[1:abspath.find('/arch/')]
+	kernel_top_dir = abspath
+#	print "###kernel top dir is : " + kernel_top_dir
 	temp = compile_cmd[:]
 	compile_cmd = []
+#	print "###old compile_cmd:: ",temp
 	for cc in temp:
 		if cc.startswith('I') and not cc.startswith('I/'):
-			compile_cmd.append('I' + kernel_top_dir + '/' + cc[1:]) 
+#			compile_cmd.append('I' + kernel_top_dir + '/' + cc[1:]) 
+			compile_cmd.append('I' + kernel_top_dir + cc[1:]) 
+		elif cc.startswith('include ') and not cc.startswith('include /'):
+			compile_cmd.append('include ' + kernel_top_dir + cc[8:]) 
 		elif cc.find('\\#s') >= 0:
 			compile_cmd.append(cc.replace('\\#s', '#s'))
 		else:
@@ -325,7 +332,7 @@ elif MODE == 2:
 # restore temporary log file
 os.system('rm -rf ./tmp; mkdir ./tmp; echo > ./tmp/log; echo > ./tmp/error; echo > ./tmp/cmd; echo > ./tmp/sed_cmd')
 for s in SRC_LIST:
-	print "s in SRC_LIST:: ",s
+#	print "s in SRC_LIST:: ",s
 	# ignore scripts and tools directory
 	if s.find('/scripts/') >= 0 or s.find('/tools/') >= 0 or s.find(".mod.") >= 0:
 		continue
@@ -344,6 +351,7 @@ for s in SRC_LIST:
 	s = s.replace('.o', '.c')
 	print "processing file " + s
 	command = ' '.join(['clang', clang_args, asm_args, clang_include, kernel_args, s, '>> ./tmp/log 2>>./tmp/error'])
+#	print "### command :: ",command
 	os.system('echo %s >> ./tmp/error' % s)
 	os.system('echo %s >> ./tmp/log' % s)
 	os.system('echo %s >> ./tmp/cmd' % s)
