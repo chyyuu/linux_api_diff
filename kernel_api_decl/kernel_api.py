@@ -9,6 +9,7 @@ import datetime
 start = datetime.datetime.now()
 parser = argparse.ArgumentParser()
 parser.add_argument('-obj', help='object file or directory', required=False)
+parser.add_argument('-abs', help='linux absolute directory', required=False)
 parser.add_argument('-mode', help='1 -- analyze all apis in object directory\n2 -- analyze apis used in object directory', required=True)
 parser.add_argument('-cmd_file', help='file to extract from', required=False)
 args = parser.parse_args()
@@ -19,6 +20,11 @@ if args.obj:
 	OBJECT = args.obj
 else:
 	OBJECT = os.getcwd() 
+abspath= ''
+if args.abs:
+	abspath = args.abs
+else:
+	abspath = os.getcwd() 
 
 # check the MODE
 MODE = 0
@@ -81,7 +87,7 @@ clang_include = '-I/home/chyyuu/llvm-related/install/include/clang'
 kernel_args = ''
 compile_cmd = []
 #abspath = ''
-abspath = args.obj
+#abspath = args.obj
 print "###current abs path::",abspath
 
 # auto analyze kernel compile args
