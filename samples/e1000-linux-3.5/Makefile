@@ -33,7 +33,7 @@
 #obj-$(CONFIG_E1000) += e1000.o
 
 PWD = $(shell pwd)
-KERNEL_SRC = /home/wh/driver-api/kernels/linux-3.16
+KERNEL_SRC = /home/wh/driver-api/kernels/linux-4.0
 obj-m = e1000.o
 e1000-objs := e1000_main.o e1000_hw.o e1000_ethtool.o e1000_param.o
 
