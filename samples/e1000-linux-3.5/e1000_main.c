@@ -814,10 +814,10 @@ static netdev_features_t e1000_fix_features(struct net_device *netdev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -828,7 +828,7 @@ static int e1000_set_features(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		e1000_vlan_mode(netdev, features);
 
 	if (!(changed & (NETIF_F_RXCSUM | NETIF_F_RXALL)))
@@ -1066,9 +1066,9 @@ static int e1000_probe(struct pci_dev *pdev,
 	if (hw->mac_type >= e1000_82543) {
 		netdev->hw_features = NETIF_F_SG |
 				   NETIF_F_HW_CSUM |
-				   NETIF_F_HW_VLAN_RX;
-		netdev->features = NETIF_F_HW_VLAN_TX |
-				   NETIF_F_HW_VLAN_FILTER;
+				   NETIF_F_HW_VLAN_CTAG_RX;
+		netdev->features = NETIF_F_HW_VLAN_CTAG_TX |
+				   NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
 	if ((hw->mac_type >= e1000_82544) &&
@@ -4005,7 +4005,7 @@ static void e1000_receive_skb(struct e1000_adapter *adapter, u8 status,
 	if (status & E1000_RXD_STAT_VP) {
 		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
 
-		__vlan_hwaccel_put_tag(skb, vid);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 	napi_gro_receive(&adapter->napi, skb);
 }
@@ -4790,7 +4790,7 @@ static void __e1000_vlan_mode(struct e1000_adapter *adapter,
 	u32 ctrl;
 
 	ctrl = er32(CTRL);
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		/* enable VLAN tag insert/strip */
 		ctrl |= E1000_CTRL_VME;
 	} else {
