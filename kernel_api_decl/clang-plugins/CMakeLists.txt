@@ -5,17 +5,17 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
 set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
 
-set (LLVM_SRC_DIR /xxx/linux_api_diff/kernel_api_decl/llvm)
-set (CLANG_SRC_DIR /xxx/linux_api_diff/kernel_api_decl/llvm/tools/clang)
-set (LLVM_BUILD_DIR /xxx/linux_api_diff/kernel_api_decl/build-llvm/Release+Asserts)
-set (CLANG_BUILD_DIR /xxx/linux_api_diff/kernel_api_decl/build-llvm/tools/clang)
+#set (LLVM_DIR /home/chyyuu/llvm-related/build/Release+Asserts)
+#set (CLANG_DIR /home/chyyuu/llvm-related/build/tools/clang)
+set (LLVM_DIR /home/chyyuu/llvm-related/install)
+set (CLANG_DIR /home/chyyuu/llvm-related/install)
 
 add_definitions (-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS)
 add_definitions (-D_GNU_SOURCE -DHAVE_CLANG_CONFIG_H)
 
 # this sets up the devel clang as our compiler
-set (CMAKE_CXX_COMPILER "${LLVM_BUILD_DIR}/bin/clang++")
-set (CMAKE_CC_COMPILER "${LLVM_BUILD_DIR}/bin/clang")
+set (CMAKE_CXX_COMPILER "${LLVM_DIR}/bin/clang++")
+set (CMAKE_CC_COMPILER "${LLVM_DIR}/bin/clang")
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings -fno-exceptions -fno-rtti")
 set (CMAKE_MODULE_LINKER_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
@@ -26,10 +26,9 @@ set (LLVM_LIBS
 macro(add_clang_plugin name)
 	set (srcs ${ARGN})
 
-	include_directories( "${LLVM_SRC_DIR}/include"
-		"${CLANG_SRC_DIR}/include"
-		"${CLANG_BUILD_DIR}/include" )
-	link_directories( "${LLVM_BUILD_DIR}/lib64/llvm" )
+	include_directories( "${LLVM_DIR}/include"
+		"${LLVM_DIR}/include/clang" )
+	link_directories( "${LLVM_DIR}/lib" )
 
 	add_library( ${name} SHARED ${srcs} )
 
