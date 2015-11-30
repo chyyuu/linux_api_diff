@@ -8,8 +8,8 @@
     
 3. 运行kernel_api.py脚本：
  
-		$python kernel_api.py -obj /home/xxx/linux -mode 1   
-其中-obj是指要分析的源码目录，-mode 1是选择模式1，即分析目标源码中所有的接口信息
+		$python kernel_api.py -obj /home/xxx/linux/ -abs /home/xxx/linux/ -mode 1   
+其中-obj是指要分析的源码目录，-abs是linux内核源码的路径，-mode 1是选择模式1，即分析目标源码中所有的接口信息
 
 4. 运行结束后当前目录下应该会生成api_declare.db，其中保存了目标版本内核的接口信息
 5. 为了保证以后再次运行时不会覆盖该文件，应该及时将该文件重命名，最好以Linux的内核版本命名
@@ -22,7 +22,7 @@
 
 2. 分析目标代码所使用的内核接口，这里假设目标代码为内核中的drivers/net/ehternet/intel/e1000（注：如果想要对两个版本的内核中所有的接口进行差异性分析，这里的步骤2可以跳过）:
 
-		$python kernel_api.py -obj /home/xxx/linux/drivers/net/ehternet/intel/e1000 -mode 2
+		$python kernel_api.py -obj /home/xxx/linux/drivers/net/ehternet/intel/e1000/ -abs /home/xxx/linux/ -mode 2
 
 3. 运行结束后能够生成数据库文件api_depend.db，其中储存着目标代码所使用的内核接口信息
 
@@ -62,4 +62,4 @@
 
 成功后应该会在MySQL中的test数据库中出现api_depend.db中拥有的表和相应的内容。
 
-注：该工具理论上应该可以对所有的数据库文件使用，但有可能会出现一些sql的语法错误
+注：该工具理论上应该可以对所有的数据库文件使用，但有可能会出现一些sql的语法错

@@ -1,0 +1,34 @@
+log_analyze README
+作者：王欢
+
+目录结构：
+--log_analyze
+ |--README
+ |--commit_parser.py
+ |--error_interpreter.py
+ |--logparser.py
+ |--patterns.py
+
+功能：对给定的驱动更新过程中出现的编译错误进行解释说明，包括该错误如何发生和相关解决办法
+
+使用说明：
+
+本工具需要以下内容作为输入：
+（1）编译错误的错误信息，也就是编译器提供的错误提示信息，一般文本格式即可；
+（2）驱动程序所属linux内核对应的git tag号，和目标的linux内核对应的git tag号码，如v3.5；
+（3）针对目标驱动程序在（2）中两个linux内核间的差异分析，通过工具kernel_api_decl分析得到；
+（4）一个完整的linux git tree目录；
+
+使用用例：
+
+驱动程序为linux-3.5.4的e1000网卡驱动，目标内核为linux-3.10，因此对应的linux git tag号码为v3.5和v3.10
+编译的错误提示信息保存在/tmp/err.txt中
+3.5.4到3.10的差异分析保存在数据库e1000-3.5.4-3.10-diff-with-macros.db中
+linux git tree的路径为/home/wh/linux-kernels/linux
+
+命令如下：
+$python error_interpreter.py -err_report /tmp/err.txt -diff_db ../e1000-3.5.4-3.10-diff-with-macros.db -old_ver v3.5 -new_ver v3.10 -linux_git /home/wh/linux-kernels/linux 
+
+结果会直接输出到屏幕中，可以使用>定向输出到文件（推荐）
+
+

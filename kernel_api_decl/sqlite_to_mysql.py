@@ -77,7 +77,7 @@ try:
     # create tables which extract from sqlite3 database
     for t in table_list:
         print "creating table " + t[0]
-        cur_mysql.execute("%s" % table_create_cmd[t[0]].replace("TEXT", "VARCHAR(256)"))
+        cur_mysql.execute("%s" % table_create_cmd[t[0]].replace("TEXT", "VARCHAR(255) character set gbk"))
 
     # extract content from sqlite database and store them into mysql database
     for t in table_list:

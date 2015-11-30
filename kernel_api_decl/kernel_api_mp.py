@@ -5,6 +5,7 @@ import sys
 import sqlite3
 import argparse
 import datetime
+from multiprocessing.dummy import Pool as ThreadPool 
 
 start = datetime.datetime.now()
 parser = argparse.ArgumentParser()
@@ -72,6 +73,19 @@ if MODE == 1:
 	conn.commit()
 print "Database file is " + db_file
 
+# initialize database of mode 1
+def init_db(name):
+	if os.path.exists(name):
+		return
+	conn = sqlite3.connect(name)
+	cur = conn.cursor()
+	cur.execute('CREATE TABLE IF NOT EXISTS decls (name TEXT NOT NULL, type INTEGER NOT NULL, file TEXT NOT NULL, linum INTEGER NOT NULL, decl TEXT NOT NULL, PRIMARY KEY(name, file, decl))')
+	cur.execute('CREATE TABLE IF NOT EXISTS record_fields (name TEXT NOT NULL, fname TEXT NOT NULL, decl TEXT NOT NULL, PRIMARY KEY(name, fname))')
+	cur.execute('CREATE TABLE IF NOT EXISTS incdeps (file TEXT NOT NULL, linum TEXT NOT NULL, included TEXT NOT NULL, PRIMARY KEY(file, linum, included))')
+	cur.execute('CREATE TABLE IF NOT EXISTS explored (file TEXT NOT NULL, PRIMARY KEY(file))')
+	conn.commit()
+	conn.close()
+
 # start analyzing
 print "Start analyzing... "
 plugin = ''
@@ -84,15 +98,15 @@ print "clang plugin : " + plugin
 asm_args = '-include ' + os.path.realpath(sys.path[0]) + '/fake_asm.h'
 #clang_include = '-I/usr/local/lib/clang/3.3/include'
 clang_include = '-I/home/chyyuu/llvm-related/install/include/clang'
-kernel_args = ''
-compile_cmd = []
+#kernel_args = ''
+#compile_cmd = []
 #abspath = ''
 #abspath = args.obj
 print "###current abs path::",abspath
 
 # auto analyze kernel compile args
 def cmp_args_gen(filename):
-	global compile_cmd
+	compile_cmd = []
 	global abspath
 #	print "Analyzing compile arguments..."
 	cmd_file = os.path.dirname(filename) + "/." + os.path.basename(filename) + '.cmd'
@@ -119,11 +133,7 @@ def cmp_args_gen(filename):
 
 	compile_cmd = os.popen('sed -n "1,1p" %s' % cmd_file).read().strip().split(' -')
 	temp = compile_cmd[:]
-<<<<<<< HEAD
 #	print "###cmd_file:: ", cmd_file
-=======
-	print "###cmd_file:: ", cmd_file
->>>>>>> whmaster
 #	print "###compile_cmd:: ",compile_cmd
 #	print "###temp:: ",temp
 	
@@ -158,18 +168,21 @@ def cmp_args_gen(filename):
 			compile_cmd.append(cc.replace('\\#s', '#s'))
 		else:
 			compile_cmd.append(cc)
+	return compile_cmd
 
 # backup and restore specific file
 file_list = []
-backup_count = 0
+backup_count = {}
 def backup_file(file_name):
         global file_list
         global backup_count
+	if file_name not in backup_count:
+		   backup_count[file_name] = 0
 	if not os.path.exists(file_name):
 		print "[Error] file isn't existed"
 		return False	
 	if os.path.exists(file_name + '.bak'):
-                backup_count += 1
+                backup_count[file_name] += 1
 		return True
         file_list.append(file_name)
 	if os.system("cp %s %s.bak" % (file_name, file_name)) == 0:
@@ -178,27 +191,27 @@ def backup_file(file_name):
 		return False
 
 def restore_file(file_name):
-        global file_list
-        global backup_count
-        if file_name == '':
-                for f in file_list:
-                        os.system("mv %s.bak %s" % (f, f))
-                return True
-        else:
-                if backup_count > 0:
-                        backup_count -= 1
-                        return True
-                elif not os.path.exists(file_name + '.bak'):
-		        print "[Error] backup file isn't existed"
-		        return False
-	        if os.system("mv %s.bak %s" % (file_name, file_name)) == 0:
-                        file_list.remove(file_name)
-		        return True
-        	else:
-	        	return False
+	global file_list
+	global backup_count
+	if file_name == '':
+		for f in file_list:
+			os.system("mv %s.bak %s" % (f, f))
+		return True
+	else:
+		if backup_count[file_name] > 0:
+			backup_count[file_name] -= 1
+			return True
+		elif not os.path.exists(file_name + '.bak'):
+			print "[Error] backup file isn't existed"
+			return False
+		if os.system("mv %s.bak %s" % (file_name, file_name)) == 0:
+			file_list.remove(file_name)
+			return True
+		else:
+			return False
 
 # function to process error which could be solved
-def VLAIS_process(bug_info):
+def VLAIS_process(bug_info, tmp_dir, s, command, kernel_args):
 	info_list = bug_info.strip().split('\n')
 	err_content = []
 	for i in info_list:
@@ -221,21 +234,21 @@ def VLAIS_process(bug_info):
 			mod_line = os.popen(sed_cmd).read()
 		else:
 			mod_line = "//" + orig_line
-    		sed_cmd = "sed -e '%si%s' -e '%sd' %s > %s/temp.c" % (line, mod_line, line, file_name, tmp_dir)
-    		#print sed_cmd
-    		os.system("echo %s >> %s/sed_cmd" % (sed_cmd, tmp_dir))
-    		os.system(sed_cmd)
-    		os.system("cp %s/temp.c %s" % (tmp_dir, file_name))
+		sed_cmd = "sed -e '%si%s' -e '%sd' %s > %s/temp.c" % (line, mod_line, line, file_name, tmp_dir)
+		#print sed_cmd
+		os.system("echo %s >> %s/sed_cmd" % (sed_cmd, tmp_dir))
+		os.system(sed_cmd)
+		os.system("cp %s/temp.c %s" % (tmp_dir, file_name))
 
 	print "process " + s + " again"
 	if os.system(command) != 0:
-		error_handle()
+		error_handle(s, kernel_args, tmp_dir, command)
 		restore_file(file_name)
 	elif not restore_file(file_name):
 		return False
 	return True
 
-def common_error_process(bug_info):
+def common_error_process(bug_info, tmp_dir, s, command, kernel_args):
         info_list = bug_info.strip().split('\n')
         err_content = []
         for i in info_list:
@@ -259,10 +272,10 @@ def common_error_process(bug_info):
                         mod_line = '//' + orig_line
                 else:
                         mod_line = ''
-                        sed_cmd = "sed -e '%si%s' -e '%sd' %s > %s/temp.c" % (line, mod_line, line, file_name, tmp_dir)
-                        os.system("echo %s >> %s/sed_cmd" % (sed_cmd, tmp_dir))
-                        os.system(sed_cmd)
-                        os.system("cp %s/temp.c %s" % (tmp_dir, file_name))
+                sed_cmd = "sed -e '%si%s' -e '%sd' %s > %s/temp.c" % (line, mod_line, line, file_name, tmp_dir)
+                os.system("echo %s >> %s/sed_cmd" % (sed_cmd, tmp_dir))
+                os.system(sed_cmd)
+                os.system("cp %s/temp.c %s" % (tmp_dir, file_name))
 
         print "process " + s + " again"
         if os.system(command) != 0:
@@ -273,7 +286,7 @@ def common_error_process(bug_info):
         return True
 
 # process compiling error "BUILD_BUG_ON"
-def BUILD_BUG_ON_process(bug_info):
+def BUILD_BUG_ON_process(bug_info, tmp_dir):
         info_list = bug_info.strip().split('\n')
         err_content = []
         for i in info_list:
@@ -304,21 +317,24 @@ def BUILD_BUG_ON_process(bug_info):
         return True
 
 # common error handler
-def error_handle():
-	command = ' '.join(['clang', clang_args, asm_args, clang_include, kernel_args, s, '>> '+tmp_dir+'/log 2>'+tmp_dir+'/bug_info'])
+def error_handle(s, kernel_args, tmp_dir, command):
+#	command = ' '.join(['clang', clang_args, asm_args, clang_include, kernel_args, s, '>> '+tmp_dir+'/log 2>'+tmp_dir+'/bug_info'])
+	if command.endswith("error"):
+		command = command[:-5]
+		command += "bug_info"
 	os.system(command)
 	bug_info = os.popen("cat "+tmp_dir+"/bug_info").read()
-    # process VLAIS error
+        # process VLAIS error
 	if bug_info.find('variable length array in structure') >= 0:
 		print "find VLAIS error, try to fix..."
-		if not VLAIS_process(bug_info):
+		if not VLAIS_process(bug_info, tmp_dir, s, command, kernel_args):
 			print "fix failed, please fix it manually"
 			quit()
 		print "fix successed, now continue..."
         # process common error
         elif bug_info.find(": error:") >= 0:
                 print "find common error, try to fix..."
-                if not common_error_process(bug_info):
+                if not common_error_process(bug_info, tmp_dir, s, command, kernel_args):
                         print "fix failed, please fix it manually"
                         quit()
                 print "fix successed, now continue..."
@@ -334,38 +350,33 @@ clang_args = ''
 
 # MODE 1 will load dump-decls pass
 if MODE == 1:
-	clang_args="-cc1 -std=gnu89 -load " + plugin + ' -plugin dump-decls -plugin-arg-dump-decls ' + database
+	clang_args="-cc1 -std=gnu89 -load " + plugin + ' -plugin dump-decls -plugin-arg-dump-decls ' 
 # MODE 2 will load decl-filter pass
 elif MODE == 2:	
 	clang_args="-cc1 -std=gnu89 -print-stats -load " + plugin + ' -plugin decl-filter -plugin-arg-decl-filter ' + database
 
-# restore temporary log file
-<<<<<<< HEAD
-os.system('rm -rf ./tmp; mkdir ./tmp; echo > ./tmp/log; echo > ./tmp/error; echo > ./tmp/cmd; echo > ./tmp/sed_cmd')
-=======
-#os.system('rm -rf ./tmp; mkdir ./tmp; echo > ./tmp/log; echo > ./tmp/error; echo > ./tmp/cmd; echo > ./tmp/sed_cmd')
-os.system('rm -rf ./tmp; mkdir ./tmp')
->>>>>>> whmaster
-for s in SRC_LIST:
+db_set = []
+
+def analyze_file(s):
 #	print "s in SRC_LIST:: ",s
 	# ignore scripts and tools directory
 	if s.find('/scripts/') >= 0 or s.find('/tools/') >= 0 or s.find(".mod.") >= 0:
-		continue
+		return
 #	if os.path.basename(s) in black_list:
 #		continue
 	if not os.path.exists(s.replace('.o', '.c')):
 		print "[Warning] file not exist : " + s.replace('.o', '.c')
-		continue
-	cmp_args_gen(s)
+		return
+	compile_cmd = cmp_args_gen(s)
 	kernel_args = '-' + ' -'.join(compile_cmd)
         if kernel_args == '-':
-            continue
+            return
+
 #	print "Compile command is : "
 #	print kernel_args
 
 	s = s.replace('.o', '.c')
-
-# create tmp file for each file
+	# create log directory
 	tmp_dir = "./tmp" + s
 	tmp_error = tmp_dir + '/error'
 	tmp_log = tmp_dir + '/log'
@@ -374,19 +385,36 @@ for s in SRC_LIST:
 	os.system('touch ' + tmp_error)
 	os.system('touch ' + tmp_log)
 	os.system('touch ' + tmp_cmd)
-									
+
+	# compute clang args with private database
+	db_name  = ''
+	if MODE == 1:
+		db_name = tmp_dir + '/' + os.path.basename(s).replace('.c', '.db')
+		if db_name not in db_set:
+			init_db(db_name)
+			db_set.append(db_name)
+		else:
+			print "[Warning]Found a repeated database: " + db_name
+#		clang_args += db_name
 
 	print "processing file " + s
-	command = ' '.join(['clang', clang_args, asm_args, clang_include, kernel_args, s, '>> ' + tmp_log + ' 2>> '+tmp_error])
+	command = ' '.join(['clang', clang_args, db_name, asm_args, clang_include, kernel_args, s, '>> ' + tmp_log + ' 2>> '+tmp_error])
 #	print "### command :: ",command
 	os.system('echo %s >> %s' % (s,tmp_error))
 	os.system('echo %s >> %s' % (s, tmp_log))
 	os.system('echo %s >> %s' % (s, tmp_cmd))
 	os.system('echo %s >> %s' % (kernel_args, tmp_cmd))
 	os.system('echo %s >> %s' % (command, tmp_cmd))
-						 
 	if os.system(command) != 0:
-		error_handle()
+		error_handle(s, kernel_args, tmp_dir, command)
+
+# restore temporary log file
+os.system('rm -rf ./tmp; mkdir ./tmp')
+pool = ThreadPool(8)
+results = pool.map(analyze_file, SRC_LIST)
+pool.close()
+pool.join()
+
 # restore files which were modified
 restore_file('')
 print "Finished"

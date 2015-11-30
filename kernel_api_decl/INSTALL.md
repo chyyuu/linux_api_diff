@@ -15,6 +15,7 @@
 
 解压后会出现llvm文件夹，执行下面的命令
 
+	$cd llvm
 	$mkdir build-llvm
 	$cd build-llvm
 	$../configure --enable-optimized
@@ -29,21 +30,7 @@
 
 ####编译clang插件
 
-进入kernel_api_decl/clang-plugins文件夹中，找到CMakeLists.txt，并将其中
-
-	set (LLVM_SRC_DIR /usr/local/llvm)
-	set (CLANG_SRC_DIR /usr/local/llvm/tools/clang)
-	set (LLVM_BUILD_DIR /usr/local/llvm/build)
-	set (CLANG_BUILD_DIR /usr/local/llvm/build/tools/clang)
-
-这四个变量设置成当前环境下各个文件夹的完整路径，如：
-
-	set (LLVM_SRC_DIR /path/to/kernel_api_decl/llvm)
-	set (CLANG_SRC_DIR /path/to/kernel_api_decl/llvm/tools/clang)
-	set (LLVM_BUILD_DIR /path/to/kernel_api_decl/build-llvm/Release+Asserts)
-	set (CLANG_BUILD_DIR /path/to/kernel_api_decl/build-llvm/tools/clang)
-
-然后执行如下命令	
+进入kernel_api_decl/clang-plugins文件夹中，然后执行如下命令	
 
 	$mkdir build
 	$cd build
